@@ -1,3 +1,6 @@
+data/properties*.csv
+results/sub*.csv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
