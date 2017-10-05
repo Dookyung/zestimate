@@ -51,10 +51,14 @@ if log_err_bound_tunning:
 
 # Model validation
 y_pred = xgboost_playground.xgboost_validate(X_train, X_validation, y_train)
+pred=[]
+for i, predict in enumerate(y_pred):
+    pred.append(str(round(predict, 6)))
+pred=np.array(pred)
 
 output = pd.DataFrame({'ParcelId': properties['parcelid'].astype(np.int32),
-        '201610': y_pred, '201611': y_pred, '201612': y_pred,
-        '201710': y_pred, '201711': y_pred, '201712': y_pred})
+        '201610': pred, '201611': pred, '201612': pred,
+        '201710': pred, '201711': pred, '201712': pred})
 # set col 'ParceID' to first col
 cols = output.columns.tolist()
 cols = cols[-1:] + cols[:-1]
