@@ -33,4 +33,4 @@ def load_all_data_files():
 
 
 def save_data(df, file_name):
-    df.to_csv(os.path.abspath(os.getcwd()+'\\..') + '\\results' + '\\' + file_name, index = False)
+    df.to_csv(os.path.abspath(os.getcwd()+'\\..') + '\\results' + '\\' + file_name, index = False, float_format = '%.6f')

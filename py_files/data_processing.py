@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import os
+import datetime as dt
 
 import data_loader
 '''
@@ -20,6 +21,13 @@ def data_cleaning_and_labeling(data):
             lbl = LabelEncoder()
             lbl.fit(list(data[c].values))
             data[c] = lbl.transform(list(data[c].values))
+    print('Memory usage reduction...')
+    for c in data.columns:
+        if data[c].dtype == int:
+            data[c] = data[c].astype(np.int32)
+        if data[c].dtype == float:
+            data[c] = data[c].astype(np.float32)
+    data[['latitude', 'longitude']] /= 1e6
     return data
 
 
@@ -30,18 +38,6 @@ def drop_outliers(data, parameters, bounds):
     return data
 
 
-def save_results_and_model(properties, y_pred, model, model_params):
-    output = pd.DataFrame({'ParcelId': properties['parcelid'].astype(np.int32),
-        '201610': y_pred, '201611': y_pred, '201612': y_pred,
-        '201710': y_pred, '201711': y_pred, '201712': y_pred})
-    cols = output.columns.tolist()
-    cols = cols[-1:] + cols[:-1]
-    output = output[cols]
-    from datetime import datetime
-    data_loader.save_data(output, 'sub{}.csv'.format(datetime.now().strftime('%Y%m%d_%H%M%S')))
-    # Save model to sav file
-    pickle.dump(model, open(os.path.abspath(os.getcwd()+'\\..')+'\\models\\' + 'model_{}.sav'.format(datetime.now().strftime('%Y%m%d_%H%M%S')), 'wb'))
-    # Save model parameters to file
-    f = open(os.path.abspath(os.getcwd()+'\\..')+'\\models\\' + 'model_{}_parameters.txt'.format(datetime.now().strftime('%Y%m%d_%H%M%S')),'w')
-    f.write(str(model_params))
-    f.close()
+def feature_month(data):
+    data['month'] = (pd.to_datetime(data['transactiondate']).dt.year - 2016)*12 + pd.to_datetime(data['transactiondate']).dt.month
+    return data
