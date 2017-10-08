@@ -11,6 +11,7 @@ import data_loader
 import data_processing
 import xgboost_playground
 import lgbm_playground
+import nn_playground
 '''
 DummyRegressor
 '''
@@ -40,7 +41,6 @@ gc.collect()
 
 # Model testing
 test_models_flag = False
-# Splitting data into train and test set
 if test_models_flag:
     from sklearn.cross_validation import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.25, random_state = 0)
@@ -52,7 +52,8 @@ if test_models_flag:
     MAE, model = xgboost_playground.xgboost_train_and_test(X_train, X_test, y_train, y_test)
     print(MAE)
     # LGBT
-
+    MAE, model = lgbm_playground.lgbm_train_and_test(X_train, X_test, y_train, y_test)
+    print(MAE)
 
 # Finding optimal log_err bound for outliers   
 log_err_bound_tunning = False
@@ -66,13 +67,26 @@ if log_err_bound_tunning:
         print('log error outliers bound: %s - MAE = %s', bound, MAE)        
 
 
-# Grid search for xgboost hyperparameters
-from sklearn.cross_validation import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 0)
-# drop outliers
-X_train = X_train[abs(y) < 0.4]
-y_train = y_train[abs(y) < 0.4]
-model, params = xgboost_playground.xgboost_grid_search(X_train, X_test, y_train, y_test)
+xgboost_par_opt = True
+if xgboost_par_opt == False:
+    # Grid search for xgboost hyperparameters
+    from sklearn.cross_validation import train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 0)
+    # drop outliers
+    X_train = X_train[abs(y) < 0.4]
+    y_train = y_train[abs(y) < 0.4]
+    model, params = xgboost_playground.xgboost_grid_search(X_train, X_test, y_train, y_test)
+
+
+nn_par_opt = True
+if nn_par_opt == False:
+    # Grid search for xgboost hyperparameters
+    from sklearn.cross_validation import train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 0)
+    # drop outliers
+    X_train = X_train[abs(y) < 0.4]
+    y_train = y_train[abs(y) < 0.4]
+    model, params = nn_playground.grid_search(X_train, X_test, y_train, y_test)
 
 
 # Model training
@@ -83,15 +97,18 @@ X_train = X_train[abs(y) < 0.4]
 y_train = y_train[abs(y) < 0.4]
 xgboost_model = xgboost_playground.xgboost_train(X_train, y_train)
 lgbm_model = lgbm_playground.lgbm_train(X_train, y_train)
+nn_model = nn_playground.train(X_train, y_train)
 # Model validation
 if add_months:
     months = np.array([10, 11, 12])
     y_pred_xgboost = [None]*len(months)
     y_pred_lgbm = [None]*len(months)
+    y_pred_nn = [None]*len(months)
     y_pred = []
     for i in range(0, len(months)):
         y_pred_xgboost[i] = xgboost_playground.xgboost_validate(X_validation, xgboost_model, months[i])
         y_pred_lgbm[i] = lgbm_playground.lgbm_validate(X_validation, lgbm_model, months[i])
+        y_pred_nn[i] = nn_playground.validate(X_validation, nn_model, months[i])
         y_pred.append(np.add(y_pred_xgboost[i], y_pred_lgbm[i])*0.5)
     output = pd.DataFrame({'ParcelId': properties['parcelid'].astype(np.int32),
         '201610': y_pred[0], '201611': y_pred[1], '201612': y_pred[2],
