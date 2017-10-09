@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import gc
+import sklearn.metrics
 
 import data_loader
 import data_processing
@@ -18,6 +19,7 @@ DummyRegressor
 data_files, properties_files = data_loader.load_all_data_files()
 properties = data_loader.load_data(properties_files[len(properties_files)-1])
 train_data = data_loader.load_data(data_files)
+properties = data_processing.missing_data_dropper(properties)
 properties = data_processing.data_cleaning_and_labeling(properties)
 X = train_data.merge(properties, how='left', on='parcelid')
 
@@ -55,6 +57,7 @@ if test_models_flag:
     MAE, model = lgbm_playground.lgbm_train_and_test(X_train, X_test, y_train, y_test)
     print(MAE)
 
+
 # Finding optimal log_err bound for outliers   
 log_err_bound_tunning = False
 if log_err_bound_tunning:
@@ -89,6 +92,62 @@ if nn_par_opt == False:
     model, params = nn_playground.grid_search(X_train, X_test, y_train, y_test)
 
 
+# Ensembled Models testing
+# Model training
+from sklearn.cross_validation import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.25, random_state = 0)
+# drop outliers
+X_train = X_train[abs(y) < 0.4]
+y_train = y_train[abs(y) < 0.4]
+# import standard scaler class from sklearn library - feature scaling for nn
+from sklearn.preprocessing import StandardScaler
+# we create object sc_X of class StandardScaler
+sc_X = StandardScaler()
+X_train_nn = sc_X.fit_transform(X_train)
+# we dont need any more to fit the test set to object sc_X because it has been already fitted
+X_test_nn = sc_X.transform(X_test)
+
+xgboost_model = xgboost_playground.xgboost_train(X_train, y_train)
+lgbm_model = lgbm_playground.lgbm_train(X_train, y_train)
+nn_model = nn_playground.train(X_train_nn, y_train)
+# Model testing
+y_pred_xgboost = xgboost_playground.xgboost_validate(X_test, xgboost_model)
+y_pred_lgbm = lgbm_playground.lgbm_validate(X_test, lgbm_model)
+y_pred_nn = nn_playground.validate(X_test_nn, nn_model)
+y_pred = np.array([y_pred_xgboost, y_pred_lgbm, y_pred_nn])
+y_pred = y_pred.sum(axis = 0)/3
+print(sklearn.metrics.mean_absolute_error(y_test, y_pred_xgboost))
+print(sklearn.metrics.mean_absolute_error(y_test, y_pred_lgbm))
+print(sklearn.metrics.mean_absolute_error(y_test, y_pred_nn))
+print(sklearn.metrics.mean_absolute_error(y_test, y_pred))
+# Stacking
+X_xgboost = xgboost_playground.xgboost_validate(X, xgboost_model)
+X_lgbm = lgbm_playground.lgbm_validate(X, lgbm_model)
+X_nn = nn_playground.validate(sc_X.transform(X), nn_model)
+X_stackNet = pd.DataFrame({'xgboost' : X_xgboost, 'lgbm' : X_lgbm, 'nn' : X_nn})
+X_stackNet = pd.concat([X, X_stackNet], axis = 1)
+y_stackNet = y
+
+X_train_sn, X_test_sn, y_train_sn, y_test_sn = train_test_split(X_stackNet, y_stackNet, test_size = 0.25, random_state = 0)
+X_train_sn = X_train_sn[abs(y) < 0.4]
+y_train_sn = y_train_sn[abs(y) < 0.4]
+
+import lightgbm as lgb
+ltrain = lgb.Dataset(X_train_sn, label = y_train_sn)
+params = {}
+params['metric'] = 'mae'
+params['max_depth'] = 100
+params['num_leaves'] = 32
+params['feature_fraction'] = .85
+params['bagging_fraction'] = .95
+params['bagging_freq'] = 8
+params['learning_rate'] = 0.0025
+params['verbosity'] = 0
+model = lgb.train(params, ltrain, valid_sets = [ltrain], verbose_eval=200, num_boost_round=2800)
+pred = model.predict(X_test_sn)
+print(sklearn.metrics.mean_absolute_error(y_test_sn, pred))
+
+
 # Model training
 from sklearn.cross_validation import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0, random_state = 0)
@@ -106,10 +165,11 @@ if add_months:
     y_pred_nn = [None]*len(months)
     y_pred = []
     for i in range(0, len(months)):
-        y_pred_xgboost[i] = xgboost_playground.xgboost_validate(X_validation, xgboost_model, months[i])
+        #y_pred_xgboost[i] = xgboost_playground.xgboost_validate(X_validation, xgboost_model, months[i])
         y_pred_lgbm[i] = lgbm_playground.lgbm_validate(X_validation, lgbm_model, months[i])
-        y_pred_nn[i] = nn_playground.validate(X_validation, nn_model, months[i])
-        y_pred.append(np.add(y_pred_xgboost[i], y_pred_lgbm[i])*0.5)
+        #y_pred_nn[i] = nn_playground.validate(X_validation, nn_model, months[i])
+        #y_pred.append(np.add(y_pred_xgboost[i], y_pred_lgbm[i])*0.5)
+        y_pred.append(y_pred_lgbm[i])
     output = pd.DataFrame({'ParcelId': properties['parcelid'].astype(np.int32),
         '201610': y_pred[0], '201611': y_pred[1], '201612': y_pred[2],
         '201710': y_pred[0], '201711': y_pred[1], '201712': y_pred[2]})
