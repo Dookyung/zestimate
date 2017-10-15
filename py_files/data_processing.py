@@ -12,7 +12,7 @@ Functions
 
 def data_cleaning_and_labeling(data):
     for c in data.columns:
-        data[c]=data[c].fillna(-1)
+        data[c]=data[c].fillna(0)
         if data[c].dtype == 'object':
             lbl = LabelEncoder()
             lbl.fit(list(data[c].values))
@@ -45,5 +45,5 @@ def missing_data_dropper(data):
     df = df.ix[df['missing_count']>0]
     df = df.sort_values(by='missing_count')
     df['missing_ratio'] = df['missing_count'] / data.shape[0]
-    data = data.drop(df.column_name[df['missing_ratio']>0.998], axis = 1)
+    data = data.drop(df.column_name[df['missing_ratio']>0.98], axis = 1)
     return data

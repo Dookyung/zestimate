@@ -38,9 +38,9 @@ def grid_search(X_train, X_test, y_train, y_test):
                         
 
 def train(X_train, y_train):
-    params = {'alpha' : 0.003, 'hidden_layer_sizes' : (20,20,10,), 'max_iter' : 50000, 
+    params = {'alpha' : 0.003, 'hidden_layer_sizes' : (10,15,4,), 'max_iter' : 50000, 
                  'activation' : 'logistic', 'verbose' : 'True', 'learning_rate' : 'adaptive'}
-    clf = MLPRegressor(alpha = 0.003, hidden_layer_sizes = (20,20,10,), max_iter = 5000, 
+    clf = MLPRegressor(alpha = 0.003, hidden_layer_sizes = (10,15,4,), max_iter = 5000, 
                  activation = 'logistic', verbose = 'True', learning_rate = 'adaptive')
     model = clf.fit(X_train, y_train)
     # Save model parameters to file

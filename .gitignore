@@ -1,6 +1,12 @@
 data/properties*.csv
 results/sub*.csv
 models/*
+test*
+time_left.tsv
+train/
+test/
+learn_error.tsv
+wyniki.pptx
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -22,9 +22,9 @@ def lgbm_train_and_test(X_train, X_test, y_train, y_test):
     params['feature_fraction'] = .85
     params['bagging_fraction'] = .95
     params['bagging_freq'] = 8
-    params['learning_rate'] = 0.0025
+    params['learning_rate'] = 0.01
     params['verbosity'] = 0
-    model = lgb.train(params, ltrain, valid_sets = [ltrain], verbose_eval=200, num_boost_round=2930)
+    model = lgb.train(params, ltrain, valid_sets = [ltrain], verbose_eval=200, num_boost_round=1000)
     if len(y_test) != 0:
         y_pred = model.predict(X_test)
         # MAE Calculation
@@ -43,9 +43,9 @@ def lgbm_train(X_train, y_train):
     params['feature_fraction'] = .85
     params['bagging_fraction'] = .95
     params['bagging_freq'] = 8
-    params['learning_rate'] = 0.0025
+    params['learning_rate'] = 0.01
     params['verbosity'] = 0
-    model = lgb.train(params, ltrain, valid_sets = [ltrain], verbose_eval=200, num_boost_round=2930)
+    model = lgb.train(params, ltrain, valid_sets = [ltrain], verbose_eval=200, num_boost_round=1000)
     # Save model parameters to file
     f = open(os.path.abspath(os.getcwd()+'\\..')+'\\models\\' + 'model_{}_parameters.txt'.format(datetime.now().strftime('%Y%m%d_%H%M%S')),'w')
     f.write(str(params))

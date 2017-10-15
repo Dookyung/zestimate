@@ -13,6 +13,7 @@ import data_processing
 import xgboost_playground
 import lgbm_playground
 import nn_playground
+import cat_playground
 '''
 DummyRegressor
 '''
@@ -30,8 +31,8 @@ if add_months:
     X = data_processing.feature_month(X)
 
 # drop other features
-X = X.drop(['parcelid','transactiondate', 'censustractandblock', 'assessmentyear', 'logerror'], axis=1)
-X_validation = properties.drop(['parcelid', 'censustractandblock', 'assessmentyear'], axis=1)
+X = X.drop(['parcelid','transactiondate', 'censustractandblock', 'assessmentyear', 'logerror', 'structuretaxvaluedollarcnt', 'landtaxvaluedollarcnt', 'taxvaluedollarcnt', 'taxamount'], axis=1)
+X_validation = properties.drop(['parcelid', 'censustractandblock', 'assessmentyear', 'structuretaxvaluedollarcnt', 'landtaxvaluedollarcnt', 'taxvaluedollarcnt', 'taxamount'], axis=1)
 
 # drop taxes
 X = X.drop(X.columns[X.columns.str.startswith('taxdelin')], axis = 1)
@@ -110,22 +111,27 @@ X_test_nn = sc_X.transform(X_test)
 xgboost_model = xgboost_playground.xgboost_train(X_train, y_train)
 lgbm_model = lgbm_playground.lgbm_train(X_train, y_train)
 nn_model = nn_playground.train(X_train_nn, y_train)
+cat_model = cat_playground.cat_train(X_train, y_train)
+
 # Model testing
 y_pred_xgboost = xgboost_playground.xgboost_validate(X_test, xgboost_model)
 y_pred_lgbm = lgbm_playground.lgbm_validate(X_test, lgbm_model)
 y_pred_nn = nn_playground.validate(X_test_nn, nn_model)
-y_pred = np.array([y_pred_xgboost, y_pred_lgbm, y_pred_nn])
-y_pred = y_pred.sum(axis = 0)/3
+y_pred_cat = cat_playground.cat_validate(X_test, cat_model)
+y_pred = np.array([y_pred_xgboost, y_pred_lgbm, y_pred_nn, y_pred_cat])
+y_pred = y_pred.sum(axis = 0)/4
 print(sklearn.metrics.mean_absolute_error(y_test, y_pred_xgboost))
 print(sklearn.metrics.mean_absolute_error(y_test, y_pred_lgbm))
 print(sklearn.metrics.mean_absolute_error(y_test, y_pred_nn))
+print(sklearn.metrics.mean_absolute_error(y_test, y_pred_cat))
 print(sklearn.metrics.mean_absolute_error(y_test, y_pred))
 # Stacking
 X_xgboost = xgboost_playground.xgboost_validate(X, xgboost_model)
 X_lgbm = lgbm_playground.lgbm_validate(X, lgbm_model)
 X_nn = nn_playground.validate(sc_X.transform(X), nn_model)
-X_stackNet = pd.DataFrame({'xgboost' : X_xgboost, 'lgbm' : X_lgbm, 'nn' : X_nn})
-X_stackNet = pd.concat([X, X_stackNet], axis = 1)
+X_cat = cat_playground.cat_validate(X, cat_model)
+X_stackNet = pd.DataFrame({'xgboost' : X_xgboost, 'lgbm' : X_lgbm, 'nn' : X_nn, 'cat' : X_cat})
+#X_stackNet = pd.concat([X, X_stackNet], axis = 1)
 y_stackNet = y
 
 X_train_sn, X_test_sn, y_train_sn, y_test_sn = train_test_split(X_stackNet, y_stackNet, test_size = 0.25, random_state = 0)
@@ -136,16 +142,50 @@ import lightgbm as lgb
 ltrain = lgb.Dataset(X_train_sn, label = y_train_sn)
 params = {}
 params['metric'] = 'mae'
-params['max_depth'] = 100
-params['num_leaves'] = 32
-params['feature_fraction'] = .85
-params['bagging_fraction'] = .95
+params['max_depth'] = 32
+params['num_leaves'] = 12
+params['feature_fraction'] = .75
+params['bagging_fraction'] = .65
 params['bagging_freq'] = 8
-params['learning_rate'] = 0.0025
+params['learning_rate'] = 0.01
 params['verbosity'] = 0
-model = lgb.train(params, ltrain, valid_sets = [ltrain], verbose_eval=200, num_boost_round=2800)
+model = lgb.train(params, ltrain, valid_sets = [ltrain], verbose_eval=200, num_boost_round=1000)
 pred = model.predict(X_test_sn)
 print(sklearn.metrics.mean_absolute_error(y_test_sn, pred))
+
+
+
+
+from sklearn.model_selection import KFold
+from catboost import CatBoostRegressor
+kfolds = 4
+models = []
+kfold = KFold(n_splits = kfolds, shuffle = True)
+for i , (train_index, test_index) in enumerate(kfold.split(X)):
+    print('Training cat model with fold {}...'.format(i + 1))
+    X_train, X_test = X.ix[train_index], X.ix[test_index]
+    y_train, y_test = y[train_index], y[test_index]
+    model = CatBoostRegressor(iterations=200, learning_rate=0.03,
+    depth=6, l2_leaf_reg=3,loss_function='MAE',eval_metric='MAE')
+    models.append(model.fit(X_train, y_train))
+    
+
+months = np.array([10, 11, 12])
+y_pred = []
+
+for i in range(0, len(months)):
+    pred = 0
+    print(months[i])
+    if months[i] != 0:
+        X_validation['month'] = months[i]
+    for model in models:
+        print('next model...')
+        pred += model.predict(X_validation)/kfolds
+    y_pred.append(pred)
+
+output = pd.DataFrame({'ParcelId': properties['parcelid'].astype(np.int32),
+        '201610': y_pred[0], '201611': y_pred[1], '201612': y_pred[2],
+        '201710': y_pred[0], '201711': y_pred[1], '201712': y_pred[2]})
 
 
 # Model training

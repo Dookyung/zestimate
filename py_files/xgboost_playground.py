@@ -17,7 +17,7 @@ def xgboost_train_and_test(X_train, X_test, y_train, y_test):
     # xgboost params
     params = {
         'eta': 0.04,
-        'max_depth': 8,
+        'max_depth': 7,
         'subsample': 0.8,
         'objective': 'reg:linear',
         'eval_metric': 'mae',
@@ -90,7 +90,7 @@ def xgboost_train(X_train, y_train):
     # xgboost params
     params = {
         'eta': 0.04,
-        'max_depth': 8,
+        'max_depth': 7,
         'subsample': 0.8,
         'objective': 'reg:linear',
         'eval_metric': 'mae',
