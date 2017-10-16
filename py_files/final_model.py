@@ -104,7 +104,7 @@ num_ensembles = 5
 for i in tqdm(range(num_ensembles)):
     model = CatBoostRegressor(
         iterations = 630, learning_rate = 0.03,
-        depth = 7, l2_leaf_reg = 3,
+        depth = 6, l2_leaf_reg = 3,
         loss_function='MAE',
         eval_metric='MAE',
         random_seed = i)
@@ -145,8 +145,8 @@ X_train = train_df[train_features]
 y_train = train_df.logerror
 
 # drop outliers
-X_train = X_train[abs(y_train) < 0.4]
-y_train = y_train[abs(y_train) < 0.4]
+#X_train = X_train[abs(y_train) < 0.4]
+#y_train = y_train[abs(y_train) < 0.4]
 
 # Model training
 X_train_loc, X_test_loc, y_train_loc, y_test_loc = train_test_split(X_train, y_train, test_size = 0.25, random_state = 10)
@@ -159,7 +159,7 @@ models = []
 for i in tqdm(range(num_ensembles)):
     model = CatBoostRegressor(
         iterations=630, learning_rate=0.03,
-        depth=7, l2_leaf_reg=3,
+        depth=6, l2_leaf_reg=3,
         loss_function='MAE',
         eval_metric='MAE',
         random_seed=i)

@@ -7,6 +7,7 @@ train/
 test/
 learn_error.tsv
 wyniki.pptx
+meta.tsv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
