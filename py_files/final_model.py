@@ -14,8 +14,7 @@ data_2016 = pd.read_csv('../data/train_2016_v2.csv', parse_dates=['transactionda
 data_2017 = pd.read_csv('../data/train_2017.csv', parse_dates=['transactiondate'], low_memory=False)
 
 def add_date_feature(data):
-    data['month'] = (data['transactiondate'].dt.year - 2016)*12 + data['transactiondate'].dt.month
-    data['month'][data['month'] > 12] = data['month'] -12
+    data['month'] = data['transactiondate'].dt.month
     data.drop(['transactiondate'], inplace=True, axis=1)
     return data
 
@@ -49,7 +48,7 @@ def data_cleaner(data):
             num_uniques -= 1
         if num_uniques == 1:
             col_to_exclude_with_unique.append(c)
-    other_col_to_exclude = ['parcelid', 'logerror','propertyzoningdesc', 'censustractandblock', 'rawcensustractandblock']
+    other_col_to_exclude = ['parcelid', 'logerror','propertyzoningdesc', 'regionidcounty', 'fireplacecnt', 'threequarterbathnbr']
     train_features = []
     for c in data.columns:
         if c not in col_to_exclude \
@@ -93,21 +92,21 @@ X_train = train_df[train_features]
 y_train = train_df.logerror
 
 # drop outliers
-X_train = X_train[abs(y_train) < 0.4]
-y_train = y_train[abs(y_train) < 0.4]
+#X_train = X_train[abs(y_train) < 0.4]
+#y_train = y_train[abs(y_train) < 0.4]
 
 months = np.array([10, 11, 12])
 models = []
 y_pred = [None]*len(months)
-num_ensembles = 5
+num_ensembles = 12
 
 for i in tqdm(range(num_ensembles)):
     model = CatBoostRegressor(
-        iterations = 630, learning_rate = 0.03,
-        depth = 6, l2_leaf_reg = 3,
+        iterations=626, learning_rate=0.03,
+        depth=6, l2_leaf_reg=3,
         loss_function='MAE',
         eval_metric='MAE',
-        random_seed = i)
+        random_seed=i)
     models.append(model.fit(X_train, y_train, cat_features = categorical_features_idx))
 
 for j in range(0, len(months)):
@@ -117,6 +116,7 @@ for j in range(0, len(months)):
         X_test = test_df[train_features]
     y_pred[j] = 0.0
     for model in models:
+        print('next model...')
         y_pred[j] += model.predict(X_test)
     y_pred[j] /= num_ensembles
 
@@ -140,21 +140,20 @@ LOCAL TESTER
 '''
 from sklearn.cross_validation import train_test_split
 import sklearn.metrics
-
 X_train = train_df[train_features]
 y_train = train_df.logerror
 
-# drop outliers
-#X_train = X_train[abs(y_train) < 0.4]
-#y_train = y_train[abs(y_train) < 0.4]
+
 
 # Model training
 X_train_loc, X_test_loc, y_train_loc, y_test_loc = train_test_split(X_train, y_train, test_size = 0.25, random_state = 10)
 
-
+# drop outliers
+#X_train_loc = X_train_loc[abs(y_train_loc) < 1.0]
+#y_train_loc = y_train_loc[abs(y_train_loc) < 1.0]
 
 y_pred = 0
-num_ensembles = 5
+num_ensembles = 1
 models = []
 for i in tqdm(range(num_ensembles)):
     model = CatBoostRegressor(
@@ -164,7 +163,7 @@ for i in tqdm(range(num_ensembles)):
         eval_metric='MAE',
         random_seed=i)
     print('training')
-    models.append(model.fit(X_train_loc, y_train_loc, cat_features = categorical_features_idx))
+    models.append(model.fit(X_train_loc, y_train_loc, cat_features = categorical_features_idx, eval_set=(X_test_loc, y_test_loc),plot=True))
     print('testing')
     y_pred += model.predict(X_test_loc)
 y_pred /= num_ensembles
